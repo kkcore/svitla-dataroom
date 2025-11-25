@@ -1,5 +1,13 @@
-import { FileText, FileSpreadsheet, FileImage, File, Presentation, Trash2 } from 'lucide-react';
+import { FileText, FileSpreadsheet, FileImage, File, Presentation, Trash2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import type { DataRoomFile } from '@/types/file';
 
 interface FileListProps {
@@ -8,7 +16,6 @@ interface FileListProps {
   onDeleteFile: (file: DataRoomFile) => void;
 }
 
-/** Get appropriate icon based on MIME type */
 function getFileIcon(mimeType: string) {
   if (mimeType === 'application/pdf' || mimeType.includes('word')) {
     return <FileText className="h-5 w-5 text-blue-600" />;
@@ -25,7 +32,6 @@ function getFileIcon(mimeType: string) {
   return <File className="h-5 w-5 text-gray-600" />;
 }
 
-/** Format file size to human readable string */
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -34,7 +40,6 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / 1024 ** 4).toFixed(1)} TB`;
 }
 
-/** Format date to locale string */
 function formatDate(isoString: string): string {
   return new Date(isoString).toLocaleDateString('en-US', {
     month: 'short',
@@ -56,44 +61,61 @@ export function FileList({ files, onViewFile, onDeleteFile }: FileListProps) {
 
   return (
     <div className="border rounded-lg overflow-hidden">
-      {/* Header */}
-      <div className="grid grid-cols-[1fr_100px_120px_50px] gap-4 px-4 py-3 bg-gray-50 border-b text-sm font-medium text-gray-600">
-        <div>Name</div>
-        <div>Size</div>
-        <div>Imported</div>
-        <div></div>
-      </div>
-
-      {/* File rows */}
-      <div className="divide-y">
-        {files.map((file) => (
-          <div
-            key={file.id}
-            className="grid grid-cols-[1fr_100px_120px_50px] gap-4 px-4 py-3 hover:bg-gray-50 cursor-pointer items-center"
-            onClick={() => onViewFile(file)}
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              {getFileIcon(file.mimeType)}
-              <span className="truncate">{file.name}</span>
-            </div>
-            <div className="text-sm text-gray-600">{formatFileSize(file.size)}</div>
-            <div className="text-sm text-gray-600">{formatDate(file.importedAt)}</div>
-            <div>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDeleteFile(file);
-                }}
-                className="text-gray-400 hover:text-red-600"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        ))}
-      </div>
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/50">
+            <TableHead>Name</TableHead>
+            <TableHead className="min-w-[100px]">Size</TableHead>
+            <TableHead className="min-w-[120px]">Imported</TableHead>
+            <TableHead className="text-right min-w-[50px]"></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {files.map((file) => (
+            <TableRow
+              key={file.id}
+              className="cursor-pointer"
+              onClick={() => onViewFile(file)}
+            >
+              <TableCell>
+                <div className="flex items-center gap-3">
+                  {getFileIcon(file.mimeType)}
+                  <span className="truncate">{file.name}</span>
+                </div>
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {formatFileSize(file.size)}
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {formatDate(file.importedAt)}
+              </TableCell>
+              <TableCell className="text-right">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteFile(file);
+                  }}
+                >
+                <ExternalLink className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteFile(file);
+                  }}
+                  className="text-muted-foreground hover:text-red-600"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }

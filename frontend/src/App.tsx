@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { FileList } from '@/components/FileList';
 import { mockFiles } from '@/data/mockFiles';
-import { HardDrive, Plus } from 'lucide-react';
+import { HardDrive, Plus, Lock } from 'lucide-react';
 import type { DataRoomFile, GoogleDriveStatus } from '@/types/file';
 
 function App() {
   const [files, setFiles] = useState<DataRoomFile[]>(mockFiles);
-  const [driveStatus] = useState<GoogleDriveStatus>('connected'); // Mock as connected for now
+  const [driveStatus] = useState<GoogleDriveStatus>('disconnected'); // Mock as connected for now
 
   const handleViewFile = (file: DataRoomFile) => {
     // TODO: Open file in browser via backend endpoint
@@ -37,7 +37,16 @@ function App() {
       {/* Header */}
       <header className="bg-white border-b px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <h1 className="text-xl font-semibold">Data Room</h1>
+          <div className="flex items-center gap-3">
+
+            <div className="h-10 w-10 bg-slate-900 dark:bg-slate-100 rounded-lg flex items-center justify-center">
+                  <Lock className="h-5 w-5 text-white dark:text-slate-900" />
+              </div>
+            <div>
+              <h1 className="text-xl font-semibold">Data Room</h1>
+              <p className="text-xs">Secure Document Repository</p>
+            </div>
+          </div>
           {driveStatus === 'connected' ? (
             <div className="flex items-center gap-2 text-sm text-green-600">
               <HardDrive className="h-4 w-4" />
