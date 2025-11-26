@@ -17,10 +17,16 @@ load_dotenv()
 
 app = FastAPI()
 
+# OAuth configuration
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+REDIRECT_URI = os.getenv("REDIRECT_URI", "http://localhost:5001/auth/google/callback")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
 # CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Vite dev server
+    allow_origins=[FRONTEND_URL],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -28,11 +34,10 @@ app.add_middleware(
 
 # -- db
 
-sqlite_file_name = "database.db"
-sqlite_url = f"sqlite:///{sqlite_file_name}"
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///database.db")
 
 connect_args = {"check_same_thread": False}
-engine = create_engine(sqlite_url, connect_args=connect_args)
+engine = create_engine(DATABASE_URL, connect_args=connect_args)
 
 
 
@@ -52,6 +57,7 @@ class DataRoomFileRead(SQLModel, table=True):
     name: str
     mime_type: str
     size: int
+    file_path: str
     google_drive_id: str
     imported_at: datetime
 
@@ -70,11 +76,6 @@ async def lifespan(app: FastAPI):
     create_db_and_tables()
     yield
 
-# OAuth configuration
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-REDIRECT_URI = "http://localhost:5001/auth/google/callback"
-FRONTEND_URL = "http://localhost:5173"
 
 # Scopes for Google Drive access
 SCOPES = (
@@ -210,7 +211,6 @@ def create_file(file: DataRoomFileCreate, session: SessionDep):
     session.commit()
     session.refresh(db_file)
     return db_file
-
 
 @app.get("/files", response_model=list[DataRoomFileRead])
 def get_files(session: SessionDep):
