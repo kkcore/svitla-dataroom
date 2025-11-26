@@ -4,14 +4,45 @@ import { FileList } from '@/components/FileList';
 import { DrivePicker, type DrivePickerFile } from '@/components/DrivePicker';
 import { mockFiles } from '@/data/mockFiles';
 import { HardDrive, Plus, Lock } from 'lucide-react';
-import type { DataRoomFile, GoogleDriveStatus } from '@/types/file';
+import type { DataRoomFile, GoogleDriveStatus, DataRoomFileCreate } from '@/types/file';
+import axios from 'axios';
 
 // Google Cloud credentials for the Drive Picker (client-side)
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'YOUR_CLIENT_ID';
 const GOOGLE_APP_ID = import.meta.env.VITE_GOOGLE_APP_ID || 'YOUR_APP_ID';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_RUL || 'http://localhost:5001';
 
-// Backend URL for server-side OAuth
-const BACKEND_URL = 'http://localhost:5001';
+
+
+/** Transform snake_case API response to camelCase */
+function transformFile(data: any): DataRoomFile {
+  return {
+    id: data.id,
+    name: data.name,
+    mimeType: data.mime_type,
+    size: data.size,
+    googleDriveId: data.google_drive_id,
+    importedAt: data.imported_at,
+  };
+}
+
+/** Create a new file in the Data Room */
+export async function createFile(file: DataRoomFileCreate): Promise<DataRoomFile> {
+  const response = await axios.post<DataRoomFile>(`${BACKEND_URL}/files`, {
+    name: file.name,
+    mime_type: file.mimeType,
+    size: file.size,
+    google_drive_id: file.googleDriveId,
+  });
+  return transformFile(response.data);
+}
+
+/** Get all files in the Data Room */
+export async function getFiles(): Promise<DataRoomFile[]> {
+  const response = await axios.get<DataRoomFile[]>(`${BACKEND_URL}/files`);
+  return response.data.map(transformFile);
+}
+
 
 function App() {
   const [files, setFiles] = useState<DataRoomFile[]>(mockFiles);

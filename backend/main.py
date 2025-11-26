@@ -7,9 +7,9 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from google_auth_oauthlib.flow import Flow
-from uuid import UUID
+from uuid import UUID, uuid4
 from datetime import datetime
-from sqlmodel import SQLModel, create_engine, Session, Field
+from sqlmodel import SQLModel, create_engine, Session, Field, select
 from contextlib import asynccontextmanager
 
 
@@ -56,6 +56,14 @@ class DataRoomFileRead(SQLModel, table=True):
     imported_at: datetime
 
 
+# -- Input schema (what the client sends)
+class DataRoomFileCreate(SQLModel):
+    name: str
+    mime_type: str
+    size: int
+    google_drive_id: str
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: runs before the app starts accepting requests
@@ -69,10 +77,10 @@ REDIRECT_URI = "http://localhost:5001/auth/google/callback"
 FRONTEND_URL = "http://localhost:5173"
 
 # Scopes for Google Drive access
-SCOPES = [
+SCOPES = (
     "https://www.googleapis.com/auth/drive.file",
     "https://www.googleapis.com/auth/drive.readonly",
-]
+)
 
 # In-memory store for OAuth state and tokens (use Redis/DB in production)
 oauth_states: dict[str, bool] = {}
@@ -184,3 +192,27 @@ def auth_logout(session_token: str | None = None):
     return {"success": True}
 
 
+
+
+
+# -- Endpoints
+@app.post("/files", response_model=DataRoomFileRead)
+def create_file(file: DataRoomFileCreate, session: SessionDep):
+    db_file = DataRoomFileRead(
+        id=uuid4(),
+        name=file.name,
+        mime_type=file.mime_type,
+        size=file.size,
+        google_drive_id=file.google_drive_id,
+        imported_at=datetime.now(),
+    )
+    session.add(db_file)
+    session.commit()
+    session.refresh(db_file)
+    return db_file
+
+
+@app.get("/files", response_model=list[DataRoomFileRead])
+def get_files(session: SessionDep):
+    files = session.exec(select(DataRoomFileRead)).all()
+    return files
