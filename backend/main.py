@@ -11,17 +11,25 @@ from uuid import UUID, uuid4
 from datetime import datetime
 from sqlmodel import SQLModel, create_engine, Session, Field, select
 from contextlib import asynccontextmanager
-
+from pathlib import Path
+import io
+from googleapiclient.http import MediaIoBaseDownload
 
 load_dotenv()
 
 app = FastAPI()
 
 # OAuth configuration
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_ID = os.getelnv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 REDIRECT_URI = os.getenv("REDIRECT_URI", "http://localhost:5001/auth/google/callback")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+
+
+
+UPLOAD_DIR = Path("./uploads")
+MAX_FILE_SIZE = 5 * 1024 ** 4 # 5TB limit
 
 # CORS for frontend
 app.add_middleware(
