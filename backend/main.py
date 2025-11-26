@@ -1,12 +1,17 @@
 import os
 import secrets
-from typing import Union
+from typing import Union, Annotated
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from google_auth_oauthlib.flow import Flow
+from uuid import UUID
+from datetime import datetime
+from sqlmodel import SQLModel, create_engine, Session, Field
+from contextlib import asynccontextmanager
+
 
 load_dotenv()
 
@@ -20,6 +25,42 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# -- db
+
+sqlite_file_name = "database.db"
+sqlite_url = f"sqlite:///{sqlite_file_name}"
+
+connect_args = {"check_same_thread": False}
+engine = create_engine(sqlite_url, connect_args=connect_args)
+
+
+
+def create_db_and_tables():
+    SQLModel.metadata.create_all(engine)
+
+def get_session():
+    with Session(engine) as session:
+        yield session
+
+SessionDep = Annotated[Session, Depends(get_session)]
+
+
+# -- models
+class DataRoomFileRead(SQLModel, table=True):
+    id: UUID = Field(primary_key=True)
+    name: str
+    mime_type: str
+    size: int
+    google_drive_id: str
+    imported_at: datetime
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: runs before the app starts accepting requests
+    create_db_and_tables()
+    yield
 
 # OAuth configuration
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
@@ -141,3 +182,5 @@ def auth_logout(session_token: str | None = None):
     if session_token and session_token in tokens:
         del tokens[session_token]
     return {"success": True}
+
+
