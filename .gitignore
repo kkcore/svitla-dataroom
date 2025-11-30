@@ -1,6 +1,12 @@
+# Upload files
+backend/uploads/*
+backend/database.db
 # Dependencies
 node_modules/
 .pnpm-store/
+frontend/node_modules
+
+.playwright-mcp
 
 # Build outputs
 dist/

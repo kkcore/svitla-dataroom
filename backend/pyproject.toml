@@ -10,3 +10,8 @@ dependencies = [
     "google-auth-oauthlib>=1.2.3",
     "python-dotenv>=1.2.1",
 ]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.14.7",
+]

@@ -386,6 +386,7 @@ def download_file(file_id: UUID, session: SessionDep):
         path=file_path,
         filename=db_file.name,
         media_type=db_file.mime_type,
+        content_disposition_type="inline"
     )
 
 
