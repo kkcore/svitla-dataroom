@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import FRONTEND_URL, UPLOAD_DIR
-from database import create_db_and_tables
+from database import cleanup_expired_sessions, create_db_and_tables
 from routers import auth, files
 
 
@@ -12,6 +12,7 @@ from routers import auth, files
 async def lifespan(app: FastAPI):
     # Startup: runs before the app starts accepting requests
     create_db_and_tables()
+    cleanup_expired_sessions()
     UPLOAD_DIR.mkdir(exist_ok=True)
     yield
 

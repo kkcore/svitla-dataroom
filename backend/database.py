@@ -19,3 +19,18 @@ def get_db_session():
 
 
 SessionDep = Annotated[Session, Depends(get_db_session)]
+
+
+def cleanup_expired_sessions():
+    from datetime import datetime
+
+    from models import UserSession
+    from sqlmodel import select
+
+    with Session(engine) as session:
+        expired = session.exec(
+            select(UserSession).where(UserSession.expires_at < datetime.now())
+        ).all()
+        for user_session in expired:
+            session.delete(user_session)
+        session.commit()
