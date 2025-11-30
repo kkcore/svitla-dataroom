@@ -95,10 +95,12 @@ export function FileList({ files, onViewFile, onDeleteFile }: FileListProps) {
                   size="icon-sm"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDeleteFile(file);
+                    onViewFile(file);
                   }}
+                  className="text-muted-foreground hover:text-blue-600"
+                  title="Open file"
                 >
-                <ExternalLink className="h-4 w-4" />
+                  <ExternalLink className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="ghost"
@@ -108,6 +110,7 @@ export function FileList({ files, onViewFile, onDeleteFile }: FileListProps) {
                     onDeleteFile(file);
                   }}
                   className="text-muted-foreground hover:text-red-600"
+                  title="Delete file"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
