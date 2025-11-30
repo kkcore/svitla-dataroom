@@ -12,7 +12,8 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 from uuid import UUID, uuid4
-from datetime import datetime
+from datetime import datetime, timedelta
+import json
 from sqlmodel import SQLModel, create_engine, Session, Field, select
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -44,6 +45,7 @@ UNSUPPORTED_MIME_TYPES = (
 
 UPLOAD_DIR = Path("./uploads")
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB limit
+SESSION_EXPIRY_DAYS = 7
 
 # -- db
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///database.db")
@@ -55,12 +57,12 @@ def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
 
 
-def get_session():
+def get_db_session():
     with Session(engine) as session:
         yield session
 
 
-SessionDep = Annotated[Session, Depends(get_session)]
+SessionDep = Annotated[Session, Depends(get_db_session)]
 
 
 # -- models
@@ -84,6 +86,15 @@ class DataRoomFileCreate(SQLModel):
 
 class ImportFileRequest(SQLModel):
     google_drive_id: str
+
+
+class UserSession(SQLModel, table=True):
+    session_token: str = Field(primary_key=True)
+    access_token: str
+    refresh_token: str | None = None
+    scopes: str  # JSON-serialized list
+    created_at: datetime = Field(default_factory=datetime.now)
+    expires_at: datetime
 
 
 # Lifespan context manager (must be defined before app creation)
@@ -113,9 +124,8 @@ SCOPES = (
     "https://www.googleapis.com/auth/drive.readonly",
 )
 
-# In-memory store for OAuth state and tokens (use Redis/DB in production)
+# In-memory store for OAuth state (short-lived, used only during OAuth flow)
 oauth_states: dict[str, bool] = {}
-tokens: dict[str, dict] = {}  # Simple in-memory token store
 
 
 def get_oauth_flow(state: str | None = None) -> Flow:
@@ -141,26 +151,41 @@ def get_oauth_flow(state: str | None = None) -> Flow:
     return flow
 
 
-def get_drive_service(session_token: str):
+def get_drive_service(session_token: str, session: Session):
     """Build Google Drive service from stored credentials."""
-    if session_token not in tokens:
+    user_session = session.get(UserSession, session_token)
+    if not user_session:
         raise HTTPException(status_code=401, detail="Invalid session token")
 
-    token_data = tokens[session_token]
+    if datetime.now() > user_session.expires_at:
+        session.delete(user_session)
+        session.commit()
+        raise HTTPException(status_code=401, detail="Session expired")
+
     credentials = Credentials(
-        token=token_data["access_token"],
-        refresh_token=token_data.get("refresh_token"),
-        token_uri=token_data.get("token_uri", "https://oauth2.googleapis.com/token"),
-        client_id=token_data.get("client_id", GOOGLE_CLIENT_ID),
-        client_secret=token_data.get("client_secret", GOOGLE_CLIENT_SECRET),
+        token=user_session.access_token,
+        refresh_token=user_session.refresh_token,
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=GOOGLE_CLIENT_ID,
+        client_secret=GOOGLE_CLIENT_SECRET,
     )
     return build("drive", "v3", credentials=credentials)
 
 
-def validate_session(session_token: str | None) -> str:
+def validate_session(session_token: str | None, session: Session) -> str:
     """Validate session token and return it if valid."""
-    if not session_token or session_token not in tokens:
-        raise HTTPException(status_code=401, detail="Unauthorized: Invalid or missing session token")
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Unauthorized: Missing session token")
+
+    user_session = session.get(UserSession, session_token)
+    if not user_session:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid session token")
+
+    if datetime.now() > user_session.expires_at:
+        session.delete(user_session)
+        session.commit()
+        raise HTTPException(status_code=401, detail="Unauthorized: Session expired")
+
     return session_token
 
 
@@ -196,7 +221,12 @@ def auth_google():
 
 
 @app.get("/auth/google/callback")
-def auth_google_callback(code: str | None = None, state: str | None = None, error: str | None = None):
+def auth_google_callback(
+    session: SessionDep,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+):
     """Handle Google OAuth callback."""
     if error:
         return RedirectResponse(url=f"{FRONTEND_URL}?auth_error={error}")
@@ -219,15 +249,17 @@ def auth_google_callback(code: str | None = None, state: str | None = None, erro
         # Generate a session token for the frontend
         session_token = secrets.token_urlsafe(32)
 
-        # Store credentials (in production, use secure storage)
-        tokens[session_token] = {
-            "access_token": credentials.token,
-            "refresh_token": credentials.refresh_token,
-            "token_uri": credentials.token_uri,
-            "client_id": credentials.client_id,
-            "client_secret": credentials.client_secret,
-            "scopes": list(credentials.scopes) if credentials.scopes else [],
-        }
+        # Store credentials in database
+        user_session = UserSession(
+            session_token=session_token,
+            access_token=credentials.token,
+            refresh_token=credentials.refresh_token,
+            scopes=json.dumps(list(credentials.scopes) if credentials.scopes else []),
+            created_at=datetime.now(),
+            expires_at=datetime.now() + timedelta(days=SESSION_EXPIRY_DAYS),
+        )
+        session.add(user_session)
+        session.commit()
 
         # Redirect to frontend with session token only (not access_token for security)
         return RedirectResponse(
@@ -240,22 +272,34 @@ def auth_google_callback(code: str | None = None, state: str | None = None, erro
 
 
 @app.get("/auth/status")
-def auth_status(session_token: str | None = None):
+def auth_status(session: SessionDep, session_token: str | None = None):
     """Check if user is authenticated."""
-    if not session_token or session_token not in tokens:
+    if not session_token:
+        return {"authenticated": False}
+
+    user_session = session.get(UserSession, session_token)
+    if not user_session:
+        return {"authenticated": False}
+
+    if datetime.now() > user_session.expires_at:
+        session.delete(user_session)
+        session.commit()
         return {"authenticated": False}
 
     return {
         "authenticated": True,
-        "access_token": tokens[session_token]["access_token"],
+        "access_token": user_session.access_token,
     }
 
 
 @app.post("/auth/logout")
-def auth_logout(session_token: str | None = None):
+def auth_logout(session: SessionDep, session_token: str | None = None):
     """Clear user session."""
-    if session_token and session_token in tokens:
-        del tokens[session_token]
+    if session_token:
+        user_session = session.get(UserSession, session_token)
+        if user_session:
+            session.delete(user_session)
+            session.commit()
     return {"success": True}
 
 
@@ -266,13 +310,13 @@ def import_file(
     session: SessionDep,
     x_session_token: str = Header(..., alias="X-Session-Token"),
 ):
-    # todo: check for other emails as I had 403 error 
+    # todo: check for other emails as I had 403 error
     """Import a file from Google Drive to the data room."""
-    validate_session(x_session_token)
+    validate_session(x_session_token, session)
 
     try:
         # Build Drive service
-        drive_service = get_drive_service(x_session_token)
+        drive_service = get_drive_service(x_session_token, session)
 
         # Get file metadata from Google Drive
         file_metadata = drive_service.files().get(
@@ -381,7 +425,7 @@ def download_file(file_id: UUID, session: SessionDep):
     file_path = Path(db_file.file_path)
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
-
+ 
     return FileResponse(
         path=file_path,
         filename=db_file.name,
@@ -397,7 +441,7 @@ def delete_file(
     x_session_token: str = Header(..., alias="X-Session-Token"),
 ):
     """Delete a file from the data room."""
-    validate_session(x_session_token)
+    validate_session(x_session_token, session)
 
     db_file = session.get(DataRoomFileRead, file_id)
     if not db_file:
