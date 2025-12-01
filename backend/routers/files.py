@@ -44,7 +44,6 @@ def import_file(
     session: SessionDep,
     x_session_token: str = Header(..., alias="X-Session-Token"),
 ):
-    # todo: check for other emails as I had 403 error
     """Import a file from Google Drive to the data room."""
     validate_session(x_session_token, session)
 
@@ -143,7 +142,6 @@ def import_file(
     except HTTPException:
         raise
     except Exception as e:
-        print(str(e))
         raise HTTPException(status_code=500, detail=f"Failed to import file: {str(e)}")
 
 

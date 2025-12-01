@@ -218,11 +218,9 @@ function App() {
       viewMimeTypes: ALLOWED_MIME_TYPES,
       callbackFunction: async (data) => {
         if (data.action === 'cancel') {
-          console.log('Picking canceled')
           return;
         }
         if (data.action === 'picked' && data.docs) {
-          console.log('Files picked from Drive:', JSON.stringify(data.docs, null, 2));
           if (!sessionToken) {
             alert('Please connect to Google Drive first');
             return;
@@ -231,7 +229,6 @@ function App() {
           setIsImporting(true);
           try {
             for (const file of data.docs) {
-              console.log('Importing file:', file.id, file.name, file);
               try {
                 const imported = await importFileFromDrive(file.id, sessionToken);
                 setFiles((prev) => [...prev, imported]);

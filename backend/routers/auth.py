@@ -202,8 +202,7 @@ def auth_google_callback(
             url=f"{FRONTEND_URL}?auth_success=true&session_token={session_token}"
         )
 
-    except Exception as e:
-        print(f"OAuth error: {e}")
+    except Exception:
         return RedirectResponse(url=f"{FRONTEND_URL}?auth_error=token_exchange_failed")
 
 

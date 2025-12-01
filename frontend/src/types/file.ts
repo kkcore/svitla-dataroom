@@ -19,14 +19,6 @@ export interface DataRoomFile {
   importedAt: string;
 }
 
-export interface DataRoomFileCreate {
-  name: string;
-  mimeType: string;
-  size: number;
-  googleDriveId: string;
-}
-
-
 
 /** Request to import a file from Google Drive */
 export interface ImportFileRequest {

@@ -25,12 +25,5 @@ class UserSession(SQLModel, table=True):
 
 
 # Input schemas
-class DataRoomFileCreate(SQLModel):
-    name: str
-    mime_type: str
-    size: int
-    google_drive_id: str
-
-
 class ImportFileRequest(SQLModel):
     google_drive_id: str
