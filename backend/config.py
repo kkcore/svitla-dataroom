@@ -18,9 +18,6 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///database.db")
 UPLOAD_DIR = Path("./uploads")
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB limit
 
-# Session
-SESSION_EXPIRY_DAYS = 7
-
 # Google Drive scopes
 SCOPES = (
     "https://www.googleapis.com/auth/drive.file",

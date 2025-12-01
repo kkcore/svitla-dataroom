@@ -19,9 +19,9 @@ class UserSession(SQLModel, table=True):
     session_token: str = Field(primary_key=True)
     access_token: str
     refresh_token: str | None = None
+    token_expiry: datetime | None = None  # When access token expires
     scopes: str  # JSON-serialized list
     created_at: datetime = Field(default_factory=datetime.now)
-    expires_at: datetime
 
 
 # Input schemas

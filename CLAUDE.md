@@ -73,7 +73,6 @@ GOOGLE_CLIENT_SECRET=your-client-secret
 ### Frontend (`frontend/.env`)
 ```
 VITE_GOOGLE_CLIENT_ID=your-client-id
-VITE_GOOGLE_APP_ID=your-app-id
 VITE_BACKEND_URL=http://localhost:5001
 ```
 

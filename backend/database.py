@@ -4,6 +4,11 @@ from fastapi import Depends
 from sqlmodel import SQLModel, Session, create_engine
 
 from config import DATABASE_URL
+from datetime import datetime
+
+from models import UserSession
+from sqlmodel import select
+
 
 connect_args = {"check_same_thread": False}
 engine = create_engine(DATABASE_URL, connect_args=connect_args)
@@ -22,14 +27,10 @@ SessionDep = Annotated[Session, Depends(get_db_session)]
 
 
 def cleanup_expired_sessions():
-    from datetime import datetime
-
-    from models import UserSession
-    from sqlmodel import select
-
+    """Remove sessions with expired access tokens."""
     with Session(engine) as session:
         expired = session.exec(
-            select(UserSession).where(UserSession.expires_at < datetime.now())
+            select(UserSession).where(UserSession.token_expiry < datetime.now())
         ).all()
         for user_session in expired:
             session.delete(user_session)

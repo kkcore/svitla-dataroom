@@ -187,12 +187,30 @@ function App() {
     }
   }, [sessionToken]);
 
-  const handleImport = useCallback(() => {
+  const handleImport = useCallback(async () => {
+    // Get fresh token before opening picker
+    let tokenToUse = accessToken;
+    if (sessionToken) {
+      const freshToken = await getAccessToken(sessionToken);
+      if (!freshToken) {
+        alert('Session expired. Please reconnect to Google Drive.');
+        localStorage.removeItem('session_token');
+        localStorage.removeItem('access_token');
+        setSessionToken(null);
+        setAccessToken(null);
+        setDriveStatus('disconnected');
+        return;
+      }
+      tokenToUse = freshToken;
+      setAccessToken(freshToken);
+      localStorage.setItem('access_token', freshToken);
+    }
+
     openPicker({
       clientId: GOOGLE_CLIENT_ID,
       developerKey: '',
       viewId: 'DOCS',
-      token: accessToken || undefined,
+      token: tokenToUse || undefined,
       showUploadView: false,
       showUploadFolders: false,
       supportDrives: true,
