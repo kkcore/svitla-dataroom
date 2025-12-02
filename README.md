@@ -97,6 +97,14 @@ VITE_BACKEND_URL=           # Backend API URL (default: http://localhost:5001)
 
 ## Running the Application
 
+### Run on Railway (deployed app)
+Backend url: https://svitla-dataroom-production-4a67.up.railway.app/
+
+
+Frontend url: https://dataroom-svitla-production-d3a9.up.railway.app/
+
+I didn't add database add-on, so all the data will be deleted after container restart
+
 ### Start the Backend Server
 
 ```bash
@@ -233,6 +241,7 @@ svitla/
 - **No Full-Text Search** - Search by filename only
 - **No Folder Support** - Flat file structure
 - **Access Token on FE** - With custom google-picker I could move google authentication token fully on the BE and respond with BE-created session token.
+- **No DB Storage on Railway** - Add-on to be added to Railway to persist data between container restarts. No time to add it.
 
 ## Design Decisions
 
