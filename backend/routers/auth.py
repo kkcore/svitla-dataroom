@@ -3,6 +3,8 @@ import json
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, HTTPException
+
+from logger import logger
 from fastapi.responses import RedirectResponse
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
@@ -95,6 +97,7 @@ def refresh_access_token_if_needed(user_session: UserSession, session: Session) 
         return credentials.token
 
     except RefreshError:
+        logger.exception("Token refresh failed for user session")
         session.delete(user_session)
         session.commit()
         raise HTTPException(
@@ -203,6 +206,7 @@ def auth_google_callback(
         )
 
     except Exception:
+        logger.exception("OAuth token exchange failed")
         return RedirectResponse(url=f"{FRONTEND_URL}?auth_error=token_exchange_failed")
 
 
@@ -210,16 +214,21 @@ def auth_google_callback(
 def auth_status(session: SessionDep, session_token: str | None = None):
     """Check if user is authenticated."""
     if not session_token:
+        logger.info("auth_status: authenticated=False, reason=missing_session_token")
         return {"authenticated": False}
 
     user_session = session.get(UserSession, session_token)
     if not user_session:
+        logger.info("auth_status: authenticated=False, reason=invalid_session_token")
         return {"authenticated": False}
 
     # Refresh access token if expired
     try:
         access_token = refresh_access_token_if_needed(user_session, session)
     except HTTPException:
+        logger.exception(
+            "auth_status: authenticated=False, reason=token_refresh_failed"
+        )
         return {"authenticated": False}
 
     return {

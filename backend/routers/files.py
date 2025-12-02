@@ -6,6 +6,8 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, HTTPException, Header
+
+from logger import logger
 from fastapi.responses import FileResponse
 from googleapiclient.http import MediaIoBaseDownload
 from sqlmodel import select
@@ -142,6 +144,7 @@ def import_file(
     except HTTPException:
         raise
     except Exception as e:
+        logger.exception("Failed to import file from Google Drive")
         raise HTTPException(status_code=500, detail=f"Failed to import file: {str(e)}")
 
 
