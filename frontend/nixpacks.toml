@@ -8,4 +8,4 @@ cmds = ["npm install -g pnpm", "pnpm install"]
 cmds = ["pnpm build"]
 
 [start]
-cmd = "pnpm dlx serve dist -l ${PORT:-3000}"
+cmd = "pnpm dlx serve dist -l 3000"
