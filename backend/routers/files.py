@@ -25,7 +25,7 @@ def sanitize_filename(filename: str) -> str:
     Sanitize filename to prevent path traversal attacks.
 
     - Strips directory components (../../../etc/passwd → passwd)
-    - Removes dangerous characters, keeping only [a-zA-Z0-9_\s\-\.]
+    - Removes dangerous characters, keeping only [a-zA-Z0-9_\\s\\-\\.]
     - Truncates to MAX_FILENAME_LENGTH while preserving extension
     """
     filename = os.path.basename(filename)
