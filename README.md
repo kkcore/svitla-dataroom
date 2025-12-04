@@ -183,6 +183,35 @@ FRONTEND_URL=https://your-frontend-domain.com
 VITE_BACKEND_URL=https://your-api-domain.com
 ```
 
+## Testing
+
+### Backend Tests
+
+The backend includes unit and integration tests using pytest.
+
+```bash
+cd backend
+
+# Run all tests
+uv run pytest tests/ -v
+
+# Run specific test file
+uv run pytest tests/test_validators.py -v
+
+# Run with short output
+uv run pytest tests/
+```
+
+#### Test Structure
+
+| File | Type | Coverage |
+|------|------|----------|
+| `test_validators.py` | Unit | MIME type, file size, export format, filename sanitization |
+| `test_files.py` | Integration | File import, list, delete endpoints |
+| `test_auth.py` | Integration | Session validation, token refresh, logout |
+
+Tests use an in-memory SQLite database and mock Google Drive API calls, so no external services are required.
+
 ## API Endpoints
 
 ### Authentication
@@ -212,9 +241,15 @@ svitla/
 │   ├── config.py            # Environment configuration
 │   ├── database.py          # SQLite/SQLModel setup
 │   ├── models.py            # Database models & schemas
+│   ├── validators.py        # Validation functions
 │   ├── routers/
 │   │   ├── auth.py          # OAuth endpoints
 │   │   └── files.py         # File management endpoints
+│   ├── tests/
+│   │   ├── conftest.py      # Pytest fixtures
+│   │   ├── test_auth.py     # Auth endpoint tests
+│   │   ├── test_files.py    # File endpoint tests
+│   │   └── test_validators.py # Validation unit tests
 │   └── uploads/             # Imported file storage
 │
 ├── frontend/

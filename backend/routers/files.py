@@ -12,10 +12,11 @@ from fastapi.responses import FileResponse
 from googleapiclient.http import MediaIoBaseDownload
 from sqlmodel import select
 
-from config import UPLOAD_DIR, MAX_FILE_SIZE, UNSUPPORTED_MIME_TYPES
+from config import UPLOAD_DIR
 from database import SessionDep
 from models import DataRoomFileRead, ImportFileRequest
 from routers.auth import get_drive_service, validate_session
+from validators import get_export_format, validate_file_size, validate_mime_type
 
 router = APIRouter(prefix="/files", tags=["files"])
 
@@ -64,39 +65,27 @@ def import_file(
         file_name = file_metadata.get("name", "unknown")
         mime_type = file_metadata.get("mimeType", "application/octet-stream")
         file_size = int(file_metadata.get("size", 0))
-        if mime_type in UNSUPPORTED_MIME_TYPES:
-            file_type = mime_type.split(".")[-1]
-            raise HTTPException(
-                status_code=400,
-                detail=f"Cannot import this file type ({file_type}). Only files with binary content can be download",
-            )
 
-        # Check file size
-        if file_size > MAX_FILE_SIZE:
-            raise HTTPException(
-                status_code=400,
-                detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024 * 1024)}MB",
-            )
+        # Validate MIME type
+        is_valid, error_msg = validate_mime_type(mime_type)
+        if not is_valid:
+            raise HTTPException(status_code=400, detail=error_msg)
 
-        # Check if it's a Google Docs type (needs export)
-        google_docs_types = {
-            "application/vnd.google-apps.document": ("application/pdf", ".pdf"),
-            "application/vnd.google-apps.spreadsheet": (
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                ".xlsx",
-            ),
-            "application/vnd.google-apps.presentation": ("application/pdf", ".pdf"),
-        }
+        # Validate file size
+        is_valid, error_msg = validate_file_size(file_size)
+        if not is_valid:
+            raise HTTPException(status_code=400, detail=error_msg)
 
         # Generate unique file ID and path
         file_id = uuid4()
         safe_name = sanitize_filename(file_name)
 
-        if mime_type in google_docs_types:
+        # Check if it's a Google Docs type (needs export)
+        export_format = get_export_format(mime_type)
+        if export_format:
             # https://developers.google.com/resources/api-libraries/documentation/drive/v3/python/latest/drive_v3.files.html
-            # Export Google Docs files
-            # Export media works only up to 10 MB
-            export_mime, ext = google_docs_types[mime_type]
+            # Export Google Docs files (export media works only up to 10 MB)
+            export_mime, ext = export_format
             file_path = UPLOAD_DIR / f"{file_id}_{safe_name}{ext}"
             mime_type = export_mime
             logger.info(f'Using export_media to download file id {request.google_drive_id}')
