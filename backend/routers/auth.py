@@ -63,6 +63,7 @@ def refresh_access_token_if_needed(user_session: UserSession, session: Session) 
         is_expired = datetime.now() >= user_session.token_expiry - timedelta(minutes=5)
     else:
         # No expiry stored - assume expired to force refresh
+        logger.info('No expired stored for token')
         is_expired = True
 
     if not is_expired:
@@ -100,6 +101,7 @@ def refresh_access_token_if_needed(user_session: UserSession, session: Session) 
         logger.exception("Token refresh failed for user session")
         session.delete(user_session)
         session.commit()
+        logger.info('Removed related user_session')
         raise HTTPException(
             status_code=401,
             detail="Token refresh failed. Please re-authenticate.",
@@ -155,7 +157,7 @@ def auth_google():
 
     # Store state for verification in callback
     oauth_states[state] = True
-
+    logger.info(f'state {state} has been stored in oauth_states')
     return RedirectResponse(url=authorization_url)
 
 
@@ -179,7 +181,7 @@ def auth_google_callback(
 
     # Clean up used state
     del oauth_states[state]
-
+    logger.info(f'Removed state {state} from oauth_states')
     try:
         flow = get_oauth_flow(state=state)
         flow.fetch_token(code=code)

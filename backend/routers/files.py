@@ -34,6 +34,7 @@ def sanitize_filename(filename: str) -> str:
     filename = re.sub(r"[^\w\s\-\.]", "_", filename)
 
     if len(filename) > MAX_FILENAME_LENGTH:
+        logger.warning('Shortening an overly long file name')
         name, ext = os.path.splitext(filename)
         filename = name[: MAX_FILENAME_LENGTH - len(ext)] + ext
 
@@ -98,12 +99,13 @@ def import_file(
             export_mime, ext = google_docs_types[mime_type]
             file_path = UPLOAD_DIR / f"{file_id}_{safe_name}{ext}"
             mime_type = export_mime
-
+            logger.info(f'Using export_media to download file id {request.google_drive_id}')
             request_media = drive_service.files().export_media(
                 fileId=request.google_drive_id, mimeType=export_mime
             )
         else:
             # Download regular files
+            logger.info(f'Using get_media to download file id {request.google_drive_id}')
             file_path = UPLOAD_DIR / f"{file_id}_{safe_name}"
             request_media = drive_service.files().get_media(
                 fileId=request.google_drive_id
@@ -113,13 +115,16 @@ def import_file(
         file_content = io.BytesIO()
         downloader = MediaIoBaseDownload(file_content, request_media)
 
+        logger.info('Downloading file')
         done = False
         while not done:
-            _, done = downloader.next_chunk()
+            progress, done = downloader.next_chunk()
+            logger.info(f'Download progress: {progress.progress() * 100:.1f}%')
 
         # Save to disk
         file_content.seek(0)
         with open(file_path, "wb") as f:
+            logger.info(f'Saving to file {file_path}')
             f.write(file_content.read())
 
         # Get actual file size after download
@@ -190,10 +195,13 @@ def delete_file(
     # Delete physical file
     file_path = Path(db_file.file_path)
     if file_path.exists():
-        file_path.unlink()
-
+        try:
+            file_path.unlink()
+            logger.info(f'Removed physical file {file_path}')
+        except OSError:
+            logger.exception(f'Failed to remove physical file {file_path}')
     # Delete database record
     session.delete(db_file)
     session.commit()
-
+    logger.info(f'Removed file {db_file.google_drive_id} from DB')
     return {"success": True, "message": f"File '{db_file.name}' deleted"}
