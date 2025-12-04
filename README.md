@@ -40,6 +40,7 @@ A secure document management application with Google Drive integration. Import f
 - Node.js 18+
 - [pnpm](https://pnpm.io/installation)
 - [uv](https://docs.astral.sh/uv/getting-started/installation/)
+- [Docker](https://docs.docker.com/get-docker/) (optional, for containerized setup)
 - Google Cloud Console project with OAuth 2.0 credentials configured
 
 ## Installation
@@ -121,6 +122,24 @@ pnpm dev
 
 Access the application at **http://localhost:5173**
 
+### Run with Docker Compose
+
+Alternatively, run both services with Docker:
+
+```bash
+# Start both frontend and backend
+docker compose up --build
+
+# Stop services
+docker compose down
+```
+
+This starts:
+- **Frontend:** http://localhost:5173
+- **Backend:** http://localhost:5001
+
+Both services support hot reloading - code changes are reflected immediately.
+
 ## Production Build
 
 ### Frontend
@@ -200,13 +219,22 @@ svitla/
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── App.tsx          # Main component
+│   │   ├── App.tsx              # Main orchestrator
+│   │   ├── config/
+│   │   │   └── constants.ts     # Environment & MIME config
+│   │   ├── services/
+│   │   │   └── api.ts           # API client functions
+│   │   ├── hooks/
+│   │   │   ├── useAuth.ts       # Authentication state
+│   │   │   └── useFiles.ts      # File operations
 │   │   ├── components/
-│   │   │   ├── FileList.tsx # File list display
-│   │   │   └── ui/          # shadcn/ui components
+│   │   │   ├── Header.tsx       # App header
+│   │   │   ├── FileSection.tsx  # File list container
+│   │   │   ├── FileList.tsx     # File table display
+│   │   │   └── ui/              # shadcn/ui components
 │   │   └── types/
-│   │       └── file.ts      # TypeScript interfaces
-│   └── vite.config.ts       # Vite configuration
+│   │       └── file.ts          # TypeScript interfaces
+│   └── vite.config.ts           # Vite configuration
 │
 └── README.md
 ```
